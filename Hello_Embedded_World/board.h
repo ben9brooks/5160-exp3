@@ -31,4 +31,16 @@ typedef struct port_regs
 
 #define DELAY 10000 
 
+//SPI
+
+typedef struct SPI_regs
+{
+    volatile uint8_t control_reg;
+    volatile uint8_t status_reg;
+    volatile uint8_t data_reg;
+} SPI_t;
+
+#define SPI0 ( ( volatile SPI_t * ) 0x4C)
+#define SPI1 ( ( volatile SPI_t * ) 0xAC)
+
 #endif
