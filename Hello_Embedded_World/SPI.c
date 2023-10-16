@@ -38,16 +38,17 @@ uint8_t get_spi_prescaler_mask(uint8_t n) {
 
 void SPI_master_init(volatile SPI_t * SPI_addr, uint32_t clock_rate)
 {
-    // Set CPOL and CPHA to 0
+    // CPOL CPHA - Clear CPOL and CPHA (0)
+	// These are preference-based but must be unanimous with other code
     SPI_addr->control_reg &= (~(3<<2));
-    // Enable SPI
+    // SPE - Enable SPI (1)
     SPI_addr->control_reg |= (1<<6);
-    // Set to master mode
+    // MSTR - Set to master mode (1)
     SPI_addr->control_reg |= (1<<4);
-    // Set to LSB first
-    SPI_addr->control_reg |= (1<<5);
+    // DORD - Clear to make MSB first (0)
+    SPI_addr->control_reg &= (~(1<<5));
     
-    // TODO: Set clock rate based on the given `clock_rate`. You can use a series of if-else conditions to check which prescaler value to use.
+    // Set clock rate based on the given `clock_rate`. You can use a series of if-else conditions to check which prescaler value to use.
     uint8_t divider = (F_CPU / OSC_DIV ) / (clock_rate);
     uint8_t mask = get_spi_prescaler_mask(divider);
     SPI_addr->control_reg |= (mask%4); // takes bottom 2 bits or mask & 0x3
