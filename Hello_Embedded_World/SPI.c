@@ -56,9 +56,15 @@ void SPI_master_init(volatile SPI_t * SPI_addr, uint32_t clock_rate)
     //add MOSI & SCK pins based on whether it's SPI0 or SPI1
     if(SPI_addr == SPI0)
     {
-        PB->DDR_REG |= (1<<5) | (1<<7); //MOSI & SCK Output
-        PB->PORT_REG |= (1<<5);  //MOSI 1
-        PB->PORT_REG &= ~(1<<7); //SCK 0
+		GPIO_Output_Init(PB, (1<<5));
+		GPIO_Output_Set(PB, (1<<5));
+		
+		GPIO_Output_Init(PB, (1<<7));
+		GPIO_Output_Clear(PB, (1<<7));
+		
+        //PB->DDR_REG |= (1<<5) | (1<<7); //MOSI & SCK Output
+        //PB->PORT_REG |= (1<<5);  //MOSI 1
+        //PB->PORT_REG &= ~(1<<7); //SCK 0
     }
     else if (SPI_addr == SPI1)
     {
