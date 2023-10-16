@@ -13,6 +13,8 @@
 #include <avr/io.h>
 
 #define OSC_DIV (1)
+#define ERROR_TIMEOUT (0xFF) 
+#define ERROR_SPI (0xFE)
 
 //struct to simplify the offsets of port registers. Pointer to the struct is needed for proper use.
 typedef struct port_regs

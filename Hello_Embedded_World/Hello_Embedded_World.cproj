@@ -191,12 +191,6 @@
     <Compile Include="gpio_input.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="delay_function.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="delay_function.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="gpio_output.c">
       <SubType>compile</SubType>
     </Compile>
@@ -209,7 +203,10 @@
     <Compile Include="main.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="mainLED.c">
+    <Compile Include="SPI.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="SPI.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="switch.c">

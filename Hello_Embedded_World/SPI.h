@@ -4,12 +4,12 @@
 
 #include "board.h"
 
-unsigned uint8_t round_up_pwr2(unsigned uint8_t n);
-unsigned uint8_t get_spi_prescaler_mask(unsigned uint8_t n);
+uint8_t round_up_pwr2(uint8_t n);
+uint8_t get_spi_prescaler_mask(uint8_t n);
 void SPI_master_init(volatile SPI_t * SPI_addr, uint32_t clock_rate);
-void SPI_transmit(uint8_t input );
-uint8_t SPI_receive(volatile SPI_t *SPI_addr);
-uint8_t SPI_transfer(volatile SPI_t *SPI_addr, uint8_t send_value);
+uint8_t SPI_transmit(volatile SPI_t* SPI_addr, uint8_t send_value, uint8_t *data);
+uint8_t SPI_receive(volatile SPI_t *SPI_addr, uint8_t* data);
+uint8_t SPI_transfer(volatile SPI_t *SPI_addr, uint8_t send_value, uint8_t *data);
 
 
 #endif 

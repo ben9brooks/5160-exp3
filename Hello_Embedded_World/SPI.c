@@ -6,7 +6,7 @@
 #include "board.h"
 
 
-unsigned uint8_t round_up_pwr2(unsigned uint8_t n) {
+uint8_t round_up_pwr2(uint8_t n) {
     if (n <= 1) {
         return 1;
     }
@@ -21,8 +21,8 @@ unsigned uint8_t round_up_pwr2(unsigned uint8_t n) {
     return n + 1; // inc to power of 2 
 }
 
-unsigned uint8_t get_spi_prescaler_mask(unsigned uint8_t n) {
-    unsigned uint8_t rounded_value = round_up_pwr2(n);
+uint8_t get_spi_prescaler_mask(uint8_t n) {
+    uint8_t rounded_value = round_up_pwr2(n);
     
     switch (rounded_value) {
         case 4:   return 0b000;
@@ -44,6 +44,8 @@ void SPI_master_init(volatile SPI_t * SPI_addr, uint32_t clock_rate)
     SPI_addr->control_reg |= (1<<6);
     // Set to master mode
     SPI_addr->control_reg |= (1<<4);
+    // Set to LSB first
+    SPI_addr->control_reg |= (1<<5);
     
     // TODO: Set clock rate based on the given `clock_rate`. You can use a series of if-else conditions to check which prescaler value to use.
     uint8_t divider = (F_CPU / OSC_DIV ) / (clock_rate);
@@ -52,13 +54,13 @@ void SPI_master_init(volatile SPI_t * SPI_addr, uint32_t clock_rate)
     SPI_addr->status_reg |= (mask/4); // takes bit 2
 
     //add MOSI & SCK pins based on whether it's SPI0 or SPI1
-    if(SPI_addr == (SPI_t *) &SPR0)
+    if(SPI_addr == SPI0)
     {
         PB->DDR_REG |= (1<<5) | (1<<7); //MOSI & SCK Output
         PB->PORT_REG |= (1<<5);  //MOSI 1
         PB->PORT_REG &= ~(1<<7); //SCK 0
     }
-    else if (SPI_addr == (SPI_t *) &SPR1)
+    else if (SPI_addr == SPI1)
     {
         PE->DDR_REG |= (1<<3);          // MOSI output
         PD->DDR_REG |= (1<<7);          // SCK output
@@ -68,6 +70,94 @@ void SPI_master_init(volatile SPI_t * SPI_addr, uint32_t clock_rate)
 
 }
 
-void SPI_transmit(uint8_t input );
-uint8_t SPI_receive(volatile SPI_t *SPI_addr);
-uint8_t SPI_transfer(volatile SPI_t *SPI_addr, uint8_t send_value);
+uint8_t SPI_transmit(volatile SPI_t* SPI_addr, uint8_t send_value, uint8_t *data)
+{
+    // init var for loop
+    uint8_t status;
+    uint16_t timeout = 0;
+    // write data to spider
+    SPI_addr->data_reg = send_value;
+    //wait for spif (bit 7) to be 0, this means SPDR can be written again
+    do
+    {
+        status = (SPI_addr->status_reg);
+        timeout++;
+    } while (((status&0x80) == 0) && timeout != 0 );
+
+    if(timeout == 0)
+    {
+        *data = 0xFF;
+        return ERROR_TIMEOUT;
+    }
+    else if ((status&0x40)!=0)
+    {
+        *data = (SPI_addr->data_reg);
+        return ERROR_SPI;
+    }
+    else 
+    {
+        *data = (SPI_addr->data_reg);
+        return 0;
+    }
+}
+uint8_t SPI_receive(volatile SPI_t *SPI_addr, uint8_t* data)
+{
+    // init var for loop
+    uint8_t status;
+    uint16_t timeout = 0;
+    // write data to spider
+    SPI_addr->data_reg = 0xFF;
+    //wait for spif (bit 7) to be 0, this means SPDR can be written again
+    do
+    {
+        status = (SPI_addr->status_reg);
+        timeout++;
+    } while (((status&0x80) == 0) && timeout != 0 );
+
+    if(timeout == 0)
+    {
+        *data = 0xFF;
+        return ERROR_TIMEOUT;
+    }
+    else if ((status&0x40)!=0)
+    {
+        *data = (SPI_addr->data_reg);
+        return ERROR_SPI;
+    }
+    else 
+    {
+        *data = (SPI_addr->data_reg);
+        return 0;
+    }
+}
+uint8_t SPI_transfer(volatile SPI_t *SPI_addr, uint8_t send_value, uint8_t *data)
+{
+
+    // init var for loop
+    uint8_t status;
+    uint16_t timeout = 0;
+    // write data to spider
+    SPI_addr->data_reg = send_value;
+    //wait for spif (bit 7) to be 0, this means SPDR can be written again
+    do
+    {
+        status = (SPI_addr->status_reg);
+        timeout++;
+    } while (((status&0x80) == 0) && timeout != 0 );
+
+    if(timeout == 0)
+    {
+        *data = 0xFF;
+        return ERROR_TIMEOUT;
+    }
+    else if ((status&0x40)!=0)
+    {
+        *data = (SPI_addr->data_reg);
+        return ERROR_SPI;
+    }
+    else 
+    {
+        *data = (SPI_addr->data_reg);
+        return 0;
+    }
+}

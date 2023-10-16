@@ -18,30 +18,35 @@
 // on the respective switch pressed.
 int main(void)
 {
+	// print_buffer = "wow"; 
+	// sprintf(print_buffer, "print buffer is %f");
+	// UART_transmit_string();
+	//exp 2 inits
 	UART_init(UART0, BAUD_RATE);
 	UART_init(UART1, BAUD_RATE);
 	UART_init(UART2, BAUD_RATE);
-	
 	char* print_buffer = export_print_buffer();
-	print_buffer = "wow"; 
-	sprintf(print_buffer, "print buffer is %f");
-	UART_transmit_string()
-	//exp 2 inits
-	//uint32_t BAUD_RATE = 9600; 
+
+	//exp3 inits
+	SPI_master_init(SPI0, 2500000U);
+	SPI_master_init(SPI1, 2500000U);
+	uint8_t data = 50;
 
 	
 	while (1)
 	{
 		//exp2 - transmits
-		uint8_t val = UART_receive(UART1);
-		// UART_transmit(UART0, 0x55);
-        UART_transmit(UART1, 0x48); //H
-        UART_transmit(UART1, 0x65); //e
-        UART_transmit(UART1, 0x6C); //l
-        UART_transmit(UART1, 0x6C); //l
-        UART_transmit(UART1, 0x6F); //o
-        UART_transmit(UART1, 0x20); //space
-        UART_transmit(UART1, val);
+		//uint8_t val = UART_receive(UART1);
+        UART_transmit(UART1, data);
+		if ( SPI_transmit(SPI1, 0x10, &data) != 0)
+		{
+			break; 
+		}
+		if(SPI_receive(SPI1, &data) != 0)
+		{
+			break; 
+		}
+		// UART_transmit(UART1, data);
 	}
 	return 0;
 }
