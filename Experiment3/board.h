@@ -13,10 +13,7 @@
 #include <avr/io.h>
 
 #define OSC_DIV (1)
-#define ERROR_TIMEOUT (0xFF) 
-#define ERROR_SPI (0xFE)
-#define ERROR_SD (0xFD)
-#define ERROR_VOLTAGE (0xFC)
+
 
 //struct to simplify the offsets of port registers. Pointer to the struct is needed for proper use.
 typedef struct port_regs
@@ -46,5 +43,15 @@ typedef struct SPI_regs
 
 #define SPI0 ( ( volatile SPI_t * ) 0x4C)
 #define SPI1 ( ( volatile SPI_t * ) 0xAC)
+
+enum ErrorTypes{
+	ERROR_TIMEOUT = 0xFF,
+	ERROR_SPI = 0xFE,
+	ERROR_SD = 0xFD,
+	ERROR_VOLTAGE = 0xFC,
+	ERROR_CMD0 = 0xFB,
+	ERROR_CMD8 = 0xFA,
+	NO_ERROR = 0x00
+	};
 
 #endif

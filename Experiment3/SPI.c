@@ -168,3 +168,31 @@ uint8_t SPI_transfer(volatile SPI_t *SPI_addr, uint8_t send_value, uint8_t *data
         return 0;
     }
 }
+
+void display_error(volatile UART_t * UART_addr, enum ErrorTypes error)
+{
+	switch(error)
+	{
+		case ERROR_TIMEOUT:
+			UART_transmit_string(UART1, "timeout\n", 8);
+			break;
+		case ERROR_SPI:
+			UART_transmit_string(UART1, "SPI\n", 4);
+			break;
+		case ERROR_SD:
+			UART_transmit_string(UART1, "SD\n", 3);
+			break;
+		case ERROR_VOLTAGE:
+			UART_transmit_string(UART1, "VOLTAGE!!!!\n", 12);
+			break;
+		case ERROR_CMD0:
+			UART_transmit_string(UART1, "CMD0\n", 5);
+			break;
+		case ERROR_CMD8:
+			UART_transmit_string(UART1, "CMD8\n", 5);
+			break;
+		default:
+			UART_transmit_string(UART1, "impossible\n", 11);
+			
+	}
+}

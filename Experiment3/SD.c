@@ -44,10 +44,10 @@ uint8_t send_command (volatile SPI_t *SPI_addr, uint8_t command, uint32_t argume
 	errorStatus = SPI_transfer(SPI_addr, command, &data);
 	if (errorStatus != 0) return errorStatus;
 	//4: 32-bit arg sent, MSB first. Exit if error occurs.
-	for (int i = 3; i >= 0; i--) // Start from the MSB, i starts high
+	for (uint8_t i = 4; i > 0; i--) // Start from the MSB, i starts high
     {
 		//this shifts right in multiples of 8. Since we can only send 8 bits, the first one (i=3) is shifted right 24b, sending the 8 MSBs first.
-        errorStatus = SPI_transfer(SPI_addr, (argument >> (8 * i)) & 0xFF, &data);
+        errorStatus = SPI_transfer(SPI_addr, (argument >> (8 * (i-1))) & 0xFF, &data);
         if (errorStatus != 0) return errorStatus;
     }
 	//5: checksum byte, lsb set to 1. If cmd is 0 or 8, checksum must be sent, otherwise 0x01 can be sent.
@@ -76,49 +76,48 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 {
 	uint8_t errorStatus = 0;
 	uint8_t timeout = 0;
-	uint8_t rcvd_val;
-	uint8_t data;
+	uint8_t data=0;
 	//size of response varies, can be 1-5 bytes. Response has short delay, 
 	// 1. send 0xFF repeatedly, and keep reading the received value. This is all done using SPI_transfer. 
 	//    continue until msb of received byte is 0 or timeout on the loop. If timed out, return error and send 0xFF.
 	do
 	{
-		rcvd_val = SPI_transfer(SPI_addr, 0xFF, &data); //SPI receive?
+		errorStatus = SPI_transfer(SPI_addr, 0xFF, &data); //SPI receive?
 		timeout++;
-	} while ( (rcvd_val == 0xFF) && (timeout != 0) );
+	} while ( (data == 0xFF) && (timeout != 0) ); //data as 0xFF is an error in SPI_transfer
 	// handle timeout errors:
 	if (timeout == 0)
 	{
 		return ERROR_TIMEOUT;
 	}
-	else if ( (rcvd_val & 0xFE)	!= 0x00 ) //0x00 and 0x01 are good values
+	else if ( (data & 0xFE)	!= 0x00 ) //0x00 and 0x01 are good values
 	{
-		*array = rcvd_val; //return value to see error
+		*array = data; //return value to see error
 		return ERROR_SD;
 	}
 	else
 	{
 		//receive the remainder of the bytes, if present.
 		// 2. If more than one byte expected, 0xFF sent out and each received byte stored in array. Repeat until all bytes received.
-		*array = rcvd_val;
+		*array = data;
 		if(number_of_bytes>1)
 		{
 			//start at 1 bc just got index 0, 3 lines above this
-			for(uint8_t i = 1; i < number_of_bytes; i++)
+			for(uint8_t i = 1; i <= number_of_bytes; i++)
 			{
-				rcvd_val = SPI_transfer(SPI_addr, 0xFF, &data);
-				array[i] = rcvd_val;
+				errorStatus = SPI_transfer(SPI_addr, 0xFF, &data);
+				array[i] = data;
 			}
 		}
 	}
 	
 	// 3. an additional 0xFF byte should be sent after the entire response. Received value is irrelevant.
-	rcvd_val = SPI_transfer(SPI_addr, 0xFF, &data);
+	errorStatus = SPI_transfer(SPI_addr, 0xFF, &data);
 	// 4. return error value
-	return 0;
+	return errorStatus;
 }
 
- void SD_init(volatile SPI_t *SPI_addr)
+ uint8_t SD_init(volatile SPI_t *SPI_addr)
  {
 	 /* ---- Extra Notes
 	    initialize sd - set SS high, send 10 spi transfers for 80 clocks
@@ -135,17 +134,16 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
      uint8_t response_cmd8[5] = {0,0,0,0,0};
 	 uint32_t ACMD41_arg = 0x00000000;
 	 
-	 //set SS to 1 (which is PB4)
-	 GPIO_Output_Init(PB, (1<<4));
-	 GPIO_Output_Set(PB, (1<<4));
+	 //set SS to 1 (inactive) (which is PB4)
+	 SD_CS_inactive(PB, (1<<4));
 	 //send 80 clock-cycles worth of transmits 
 	 for(uint8_t i = 0; i < 8; i++)
 	 {
-		 errorStatus = SPI_transfer(SPI_addr, 0xFF, &data);
+		 errorStatus = SPI_transmit(SPI_addr, 0xFF, &data);
 	 }
 
-	 //set SS to 0
-	 GPIO_Output_Clear(PB, (1<<4));
+	 //set SS to 0 (active)
+	 SD_CS_active(PB, (1<<4));
 	 
 	 //send CMD0, expecting R1. If not R1, stop here.
 	 errorStatus = send_command(SPI_addr, CMD0, arg);
@@ -155,18 +153,19 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 	 }
 	 if(response_cmd0[0] != 0x01)
 	 {
-		 return ERROR_SD;
+		 return ERROR_CMD0;
 	 }
 
 	 //send CM8, expecting R7. If voltage val != 0x01 or if check byte doesn't match, stop here.
 	 errorStatus = send_command(SPI_addr, CMD8, 0x000001AA);
 	 if(errorStatus == 0)
 	 {
+		//loop at receive all 5 bytes, starting at MSB i think
 		errorStatus = receive_response(SPI_addr, 5, &response_cmd8);
 	 }
 	 
-	 // if reponse is 0x05 (illegal cmd), flag it for later, bc it can't be high capacity (SDHC).
-	 if((response_cmd8[0] == 0x01) && (errorStatus == 0))
+	 // if response is 0x05 (illegal cmd), flag it for later, bc it can't be high capacity (SDHC).
+	 if((response_cmd8[0] < 0x02) && (errorStatus == 0))
 	 {
 		if((response_cmd8[3] == 0x01 ) && (response_cmd8[4] == 0xAA))
 		{
@@ -177,18 +176,18 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 			return ERROR_VOLTAGE;
 		}
 	 }
-	 else if(response_cmd8[0] == 0x05)
+	 else if(response_cmd8[0] == 0x05) //old card
 	 {
 		ACMD41_arg = 0x00000000;
 		//sd_card_type = ??
 	 }
 	 else
 	 {
-		return ERROR_SD;
+		return ERROR_CMD8;
 	 }
 
-	 // turn CS high?
-	 GPIO_Output_Set(PB, (1<<4));
+	 // turn CS high (inactive)?
+	 SD_CS_inactive(PB, (1<<4));
 
 	 return 0;
  }
