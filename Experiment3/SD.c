@@ -10,7 +10,12 @@
  #include "gpio_output.h"
 #include <util/delay.h>
 
-
+// #define RETURN_IF_ERROR(exp, check, return_val) \
+//     do {                                       \
+//         if ((exp) != (check)) {                \
+//             return (return_val);              \
+//         }                                      \
+//     } while (0)
 #define SD_CS_port (PB) //(&PINB)
 #define SD_CS_pin (1<<4)
 
@@ -34,6 +39,7 @@ uint8_t send_command (volatile SPI_t *SPI_addr, uint8_t command, uint32_t argume
     uint8_t data; // Placeholder for received SPI data
 
 	//1: check if command is 6 bits (<= 63). If not, error flag & function exits.
+	
 	if (command > 63)
 	{
 		//change this?
@@ -87,10 +93,12 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 		timeout++;
 	} while ( (data == 0xFF) && (timeout != 0) ); //data as 0xFF is an error in SPI_transfer
 	// handle timeout errors:
+	//timeout =0; 
+	//RETURN_IF_ERROR(timeout, 0, ERROR_TIMEOUT); 
 	if (timeout == 0)
 	{
-		return ERROR_TIMEOUT;
-	}
+			return ERROR_TIMEOUT;
+		}
 	else if ( (data & 0xFE)	!= 0x00 ) //0x00 and 0x01 are good values
 	{
 		*array = data; //return value to see error
@@ -119,22 +127,15 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 }
 
  uint8_t SD_init(volatile SPI_t *SPI_addr)
- {
-	 /* ---- Extra Notes
-	    initialize sd - set SS high, send 10 spi transfers for 80 clocks
-	    send ss low, send CMD0,
-	    PB4
-	    ------ */
-	
+ {	
 	 //init spi to master mode (can this be done externally?)
 	 
 	 uint8_t errorStatus = 0;
 	 uint8_t data = 0;
 	 uint32_t arg = 0x00000000;
-	 //uint8_t response_cmd0[1] = {0};
-	 uint8_t response_cmd0 = 0;
-     uint8_t response_cmd8[5] = {0,0,0,0,0};
+     uint8_t receive_array[5] = {0,0,0,0,0,0,0,0};
 	 uint32_t ACMD41_arg = 0x00000000;
+	 uint16_t timeout = 0;
 	 
 	 //set CS to 1 (inactive) (which is PB4)
 	 SD_CS_inactive(PB, (1<<4));
@@ -147,42 +148,56 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 	 //set SS to 0 (active)
 	 SD_CS_active(PB, (1<<4));
 	 
-	 //send CMD0, expecting R1. If not R1, stop here.
+	 /************
+     *
+     *  CMD0
+     *
+     *************/
+	 
 	 errorStatus = send_command(SPI_addr, CMD0, arg);
 	 if (errorStatus == 0)
 	 {
-		 errorStatus = receive_response(SPI_addr, 1, &response_cmd0);
+		 errorStatus = receive_response(SPI_addr, 1, &receive_array[0]);
 		 //set CS to 1 (inactive) (which is PB4)
 		 SD_CS_inactive(PB, (1<<4));
 	 }
-	 if(response_cmd0 != 0x01)
+	 if(receive_array[0] != 0x01)
 	 {
 		 return ERROR_CMD0;
 	 }
 
-	 //send CM8, expecting R7. If voltage val != 0x01 or if check byte doesn't match, stop here.
+	/************
+     *
+     *  CMD8
+     *
+     *************/
+	 //STEP C) send CM8, expecting R7. If voltage val != 0x01 or if check byte doesn't match, stop here.
+	 SD_CS_active(PB, (1<<4));
 	 errorStatus = send_command(SPI_addr, CMD8, 0x000001AA);
 	 if(errorStatus == 0)
 	 {
 		//loop at receive all 5 bytes, starting at MSB i think
-		errorStatus = receive_response(SPI_addr, 5, &response_cmd8[0]);
+		errorStatus = receive_response(SPI_addr, 5, &receive_array[0]);
+	 	SD_CS_inactive(PB, (1<<4));
 	 }
 	 
 	 // if response is 0x05 (illegal cmd), flag it for later, bc it can't be high capacity (SDHC).
-	 if((response_cmd8[0] < 0x02) && (errorStatus == 0))
+	 //check for R1 reponse
+	 if((receive_array[0] == 0x01) && (errorStatus == 0))
 	 {
-		if((response_cmd8[3] == 0x01 ) && (response_cmd8[4] == 0xAA))
+		//expecting echo back of 0x000001AA
+		if((receive_array[3] == 0x01 ) && (receive_array[4] == 0xAA))
 		{
-			ACMD41_arg = 0x40000000; //high voltage 
+			ACMD41_arg = 0x40000000; //high voltage, v2.0
 		}
 		else
 		{
 			return ERROR_VOLTAGE;
 		}
 	 }
-	 else if(response_cmd8[0] == 0x05) //old card
+	 else if(receive_array[0] == 0x05) //old card
 	 {
-		ACMD41_arg = 0x00000000;
+		ACMD41_arg = 0x00000000; //v1.x
 		//sd_card_type = ??
 	 }
 	 else
@@ -190,8 +205,112 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 		return ERROR_CMD8;
 	 }
 
-	 // turn CS high (inactive)?
-	 SD_CS_inactive(PB, (1<<4));
+	/**************************
+	*
+	* 	CMD58
+	*
+	**************************/
+	SD_CS_active(PB, (1<<4));
+	errorStatus = send_command(SPI_addr, CMD58, arg); 	
+	
+	//check error
+	if (errorStatus != 0x00)
+	{
+		return ERROR_CMD58;
+	}
 
-	 return 0;
+	//receive rsponffese from sd card
+	errorStatus = receive_response(SPI_addr, 5, &receive_array[0]);
+	SD_CS_inactive(PB, (1<<4));
+	//check for error
+	if (errorStatus != 0x00)
+	{
+		return ERROR_CMD58;
+	}
+	//check for R3
+	//check R1 + 32 bit OCR
+	if(receive_array[0] != 0x01)
+	{
+		return ERROR_CMD58;
+	}
+	if((receive_array[2] & 0xFC) != 0xFC)
+	{
+		return ERROR_CMD58;
+	}
+
+	/**************************
+	*
+	* 	ACMD41
+	*
+	**************************/
+	
+	while(receive_array[0] != 0x00)
+	{
+		SD_CS_active(PB, (1<<4));
+		//send cmd55 first, receive R1, 
+		errorStatus = send_command(SPI_addr, CMD55, arg);
+		if(errorStatus != 0x00)
+		{
+			return ERROR_CMD55;
+		}
+		errorStatus = receive_response(SPI_addr, 1, &receive_array[0]);
+		
+		if(receive_array[0] != 0x01)
+		{
+			return ERROR_CMD55;
+		}
+		//then ACMD41 sent as CMD41 and R1 received all while CS=0.	Send ACMD41 until R1 is actually 0x00
+		errorStatus = send_command(SPI_addr, CMD41, ACMD41_arg);
+		if(errorStatus != 0x00)
+		{
+			return ERROR_CMD41;
+		}
+		errorStatus = receive_response(SPI_addr, 1, receive_array);
+		if(errorStatus != 0x00)
+		{
+			return ERROR_CMD41;
+		}
+		timeout++;
+		if (timeout == 0)
+		{
+			return ERROR_CMD41_TIMEOUT;
+		}
+		SD_CS_inactive(PB, (1<<4));
+	}
+	
+	
+	/**************************
+	*
+	* 	CMD58 again
+	*
+	**************************/
+	SD_CS_active(PB, (1<<4));
+	errorStatus = send_command(SPI_addr, CMD58, arg); 	
+	
+	//check error
+	if (errorStatus != 0x00)
+	{
+		return ERROR_CMD58;
+	}
+
+	//receive rsponffese from sd card
+	errorStatus = receive_response(SPI_addr, 5, &receive_array[0]);
+	SD_CS_inactive(PB, (1<<4));
+	//check for error
+	if (errorStatus != 0x00)
+	{
+		return ERROR_CMD58;
+	}
+	//check for R3
+	//check R1 + 32 bit OCR
+	if((receive_array[1] & 0x80) != 0x80)
+	{
+		return ERROR_CMD58;
+	}
+	else if((receive_array[1] & 0xC0) != 0xC0)
+	{
+		return ERROR_CMD58;
+	}
+
+	return 0;
  }

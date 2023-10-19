@@ -193,6 +193,18 @@ void display_error(volatile UART_t * UART_addr, enum ErrorTypes error)
 		case ERROR_CMD8:
 			UART_transmit_string(UART1, "CMD8\n", 5);
 			break;
+        case ERROR_CMD58:
+			UART_transmit_string(UART1, "CMD58\n", 6);
+			break;
+        case ERROR_CMD55:
+			UART_transmit_string(UART1, "CMD55\n", 6);
+			break;
+        case ERROR_CMD41:
+			UART_transmit_string(UART1, "CMD41\n", 6);
+			break;
+        case ERROR_CMD41_TIMEOUT:
+			UART_transmit_string(UART1, "CMD41TIME\n", 10);
+			break;
 		default:
 			UART_transmit_string(UART1, "impossible\n", 11);
 			
