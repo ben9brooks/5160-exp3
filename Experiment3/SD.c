@@ -7,20 +7,21 @@
  #include "board.h"
  #include "SPI.h"
  #include "SD.h"
+ #include "gpio_output.h"
 #include <util/delay.h>
 
 
 #define SD_CS_port (PB) //(&PINB)
 #define SD_CS_pin (1<<4)
 
-void SD_CS_active(volatile uint8_t *port, uint8_t pin);
-void SD_CS_inactive(volatile uint8_t *port, uint8_t pin);
+void SD_CS_active(volatile GPIO_port_t *port, uint8_t pin);
+void SD_CS_inactive(volatile GPIO_port_t *port, uint8_t pin);
 
-void SD_CS_active(volatile uint8_t *port, uint8_t pin)
+void SD_CS_active(volatile GPIO_port_t *port, uint8_t pin)
 {
 	GPIO_Output_Clear(port,pin);
 }
-void SD_CS_inactive(volatile uint8_t *port, uint8_t pin)
+void SD_CS_inactive(volatile GPIO_port_t *port, uint8_t pin)
 {
 	GPIO_Output_Set(port,pin);
 }
@@ -130,7 +131,8 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 	 uint8_t errorStatus = 0;
 	 uint8_t data = 0;
 	 uint32_t arg = 0x00000000;
-	 uint8_t response_cmd0[1] = {0};
+	 //uint8_t response_cmd0[1] = {0};
+	 uint8_t response_cmd0 = 0;
      uint8_t response_cmd8[5] = {0,0,0,0,0};
 	 uint32_t ACMD41_arg = 0x00000000;
 	 
@@ -151,7 +153,7 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 	 {
 		 errorStatus = receive_response(SPI_addr, 1, &response_cmd0);
 	 }
-	 if(response_cmd0[0] != 0x01)
+	 if(response_cmd0 != 0x01)
 	 {
 		 return ERROR_CMD0;
 	 }
@@ -161,7 +163,7 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 	 if(errorStatus == 0)
 	 {
 		//loop at receive all 5 bytes, starting at MSB i think
-		errorStatus = receive_response(SPI_addr, 5, &response_cmd8);
+		errorStatus = receive_response(SPI_addr, 5, &response_cmd8[0]);
 	 }
 	 
 	 // if response is 0x05 (illegal cmd), flag it for later, bc it can't be high capacity (SDHC).

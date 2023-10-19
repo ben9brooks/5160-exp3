@@ -11,7 +11,9 @@
 #include "UART.h"
 #include <stdio.h>
 #include "SD.h"
-
+#include "SPI.h"
+#include "gpio_output.h"
+#include "UART_Print.h"
 
 int main(void)
 {
@@ -25,7 +27,7 @@ int main(void)
 	//SPI_master_init(SPI1, 2500000U);
 	uint8_t data = 0x52;
 	uint8_t error =  0;
-	uint32_t arg = 0x00000000;
+	//uint32_t arg = 0x00000000;
 	enum ErrorTypes typederror = 0;
 	
 	

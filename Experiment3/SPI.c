@@ -4,6 +4,8 @@
 */
 #include "SPI.h"
 #include "board.h"
+#include "gpio_output.h"
+#include "UART_Print.h"
 
 
 uint8_t round_up_pwr2(uint8_t n) {
