@@ -136,7 +136,7 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
      uint8_t response_cmd8[5] = {0,0,0,0,0};
 	 uint32_t ACMD41_arg = 0x00000000;
 	 
-	 //set SS to 1 (inactive) (which is PB4)
+	 //set CS to 1 (inactive) (which is PB4)
 	 SD_CS_inactive(PB, (1<<4));
 	 //send 80 clock-cycles worth of transmits 
 	 for(uint8_t i = 0; i < 8; i++)
@@ -152,6 +152,8 @@ uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uin
 	 if (errorStatus == 0)
 	 {
 		 errorStatus = receive_response(SPI_addr, 1, &response_cmd0);
+		 //set CS to 1 (inactive) (which is PB4)
+		 SD_CS_inactive(PB, (1<<4));
 	 }
 	 if(response_cmd0 != 0x01)
 	 {

@@ -9,8 +9,9 @@
 #ifndef SD_H_
 #define SD_H_
 
-#define CMD0 (0x00)
-#define CMD8 (0x08)
+#define CMD0  (0x00)
+#define CMD8  (0x08)
+#define CMD58 (58U)
 
 uint8_t send_command (volatile SPI_t *SPI_addr, uint8_t command, uint32_t argument);
 uint8_t receive_response (volatile SPI_t *SPI_addr, uint8_t number_of_bytes, uint8_t * array_name);
